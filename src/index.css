@@ -1,24 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 :root {
-  --primary-cyan: #7fe3fa;       /* Exact reference color */
-  --primary-cyan-soft: #8fe7fc;
+  --primary-cyan: #7fe3fa;
+  --primary-hero: #8fe6fa;
   --canvas-bg: #000000;
   --card-bg: #111317;
-  --pill-bg: #161920;
+}
+
+* {
+  font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 body {
-  background-color: var(--canvas-bg);
+  background-color: #000000;
   color: #ffffff;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbars */
+/* Reference Image ka exact signature temperature styling */
+.temp-val {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+  display: inline-flex;
+  align-items: flex-start;
+}
+
+.temp-deg {
+  font-size: 0.55em;
+  font-weight: 800;
+  margin-top: 0.05em;
+  margin-left: 0.04em;
+  line-height: 1;
+}
+
+/* Custom Tactical Scrollbars */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
