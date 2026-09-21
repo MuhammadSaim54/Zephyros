@@ -51,3 +51,12 @@ body {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
 }
+
+/* Scrollbar complete suppression */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
