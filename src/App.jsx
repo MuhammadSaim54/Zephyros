@@ -4,13 +4,13 @@ import TopCommandBar from './components/TopCommandBar';
 import ForecastDeck from './components/ForecastDeck';
 import PrecipitationSpline from './components/PrecipitationSpline';
 import GlobalSynopticMap from './components/GlobalSynopticMap';
+import RegionalCitiesGrid from './components/RegionalCitiesGrid';
 import {
   getWeather3DComponent,
   DynamicCharacterCloud
 } from './components/WeatherIcons';
 import { useWeatherData } from './hooks/useWeatherData';
 import {
-  Activity,
   Compass,
   CloudRain,
   MapPin,
@@ -148,40 +148,27 @@ export default function App() {
             </div>
           </div>
 
-          {/* Row 2: Global Map (8 cols) + Phase 6 Cities Staged (4 cols) */}
+          {/* Row 2: Global Map (8 cols) + Phase 6 Dynamic Regional Cities Grid (4 cols) */}
           <div className="grid grid-cols-12 gap-3.5 items-stretch min-h-0 h-full overflow-hidden">
             {/* Phase 5: Global Synoptic Map (8 cols) */}
             <div className="col-span-8 flex items-stretch h-full min-h-0">
               <GlobalSynopticMap onSelectCity={(c) => handleCitySearch(c)} />
             </div>
 
-            {/* Phase 6 Staged Slot: Cities Close to You (4 cols) */}
-            <div className="col-span-4 p-4 rounded-[26px] bg-[#111317] border border-white/[0.04] flex flex-col justify-between h-full min-h-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-[#7fe3fa]" />
-                  Phase 6 • Cities Close to You
-                </span>
-                <span className="text-[10px] font-mono text-[#7fe3fa] bg-[#7fe3fa]/10 px-2 py-0.5 rounded-full border border-[#7fe3fa]/20">
-                  READY FOR PHASE 6
-                </span>
-              </div>
-              <div className="border border-dashed border-white/[0.08] rounded-2xl p-4 flex flex-col items-center justify-center text-center my-auto">
-                <div className="w-9 h-9 rounded-xl bg-[#7fe3fa]/10 border border-[#7fe3fa]/20 flex items-center justify-center text-[#7fe3fa] mb-1 font-mono text-xs font-bold">
-                  P6
-                </div>
-                <h4 className="text-xs font-bold text-stone-200">Regional Weather Grid Staged</h4>
-                <p className="text-[10px] text-stone-500 max-w-xs mt-0.5">
-                  Ogun, Ibadan, Oshogbo, and Ekiti will mount here in Phase 6.
-                </p>
-              </div>
-              <span className="text-[9px] text-stone-600 font-mono">GRID: 4 COLUMNS</span>
+            {/* Phase 6: Regional Cities Hub (4 cols) - Live Dynamic Props */}
+            <div className="col-span-4 flex items-stretch h-full min-h-0">
+              <RegionalCitiesGrid
+                currentLocation={cityQuery}
+                locationMeta={locationMeta}
+                onSelectCity={(target) => handleCitySearch(target)}
+                formatTemp={formatTemp}
+              />
             </div>
           </div>
         </main>
 
         {/* ========================================================================= */}
-        {/* TABLET & MOBILE VIEWPORT (Smooth Scroll + Dynamic Weather Binding)        */}
+        {/* TABLET & MOBILE VIEWPORT (Smooth Scroll + Dynamic Regional Sync)          */}
         {/* ========================================================================= */}
         <main className="xl:hidden flex-1 px-4 sm:px-8 md:px-12 pt-1 pb-28 overflow-y-auto overflow-x-hidden relative max-w-xl md:max-w-2xl mx-auto w-full">
           <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#7fe3fa]/10 rounded-full blur-[120px] pointer-events-none" />
@@ -331,6 +318,16 @@ export default function App() {
               <div className="w-full h-[220px] shrink-0 mt-2">
                 <GlobalSynopticMap onSelectCity={(c) => handleCitySearch(c)} />
               </div>
+
+              {/* Mobile Regional Cities (Synced with active search) */}
+              <div className="w-full h-[240px] shrink-0 mt-2">
+                <RegionalCitiesGrid
+                  currentLocation={cityQuery}
+                  locationMeta={locationMeta}
+                  onSelectCity={(c) => handleCitySearch(c)}
+                  formatTemp={formatTemp}
+                />
+              </div>
             </div>
           )}
 
@@ -365,27 +362,13 @@ export default function App() {
                 <span className="text-[10px] md:text-xs font-bold text-[#7fe3fa] tracking-widest uppercase">Regional Hub</span>
                 <h2 className="text-xl md:text-2xl font-extrabold text-white">Cities Close To You</h2>
               </div>
-              <div className="grid grid-cols-2 gap-3.5">
-                {[
-                  { name: 'Ogun', cond: 'Cloudy', type: 'cloud', temp: 19 },
-                  { name: 'Ibadan', cond: 'Raining', type: 'rain', temp: 26 },
-                  { name: 'Oshogbo', cond: 'Snowing', type: 'snow', temp: -2 },
-                  { name: 'Ekiti', cond: 'Humid', type: 'sun', temp: 12 },
-                ].map((c, i) => (
-                  <div key={i} className="p-4.5 rounded-[24px] bg-[#111317] border border-white/[0.05] flex flex-col justify-between h-32">
-                    <div>
-                      <span className="text-[10px] text-stone-500 font-bold block">Nigeria</span>
-                      <h4 className="text-sm font-bold text-white">{c.name}</h4>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-stone-400">{c.cond}</span>
-                      <div className="w-7 h-7 flex items-center justify-center">
-                        {getWeather3DComponent(c.type, 26)}
-                      </div>
-                      <span className="text-base font-black text-white">{formatTemp(c.temp)}</span>
-                    </div>
-                  </div>
-                ))}
+              <div className="w-full h-[340px]">
+                <RegionalCitiesGrid
+                  currentLocation={cityQuery}
+                  locationMeta={locationMeta}
+                  onSelectCity={(c) => handleCitySearch(c)}
+                  formatTemp={formatTemp}
+                />
               </div>
             </div>
           )}
