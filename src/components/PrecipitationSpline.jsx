@@ -1,225 +1,248 @@
-import React, { memo, useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { memo, useState, useRef, useId, useEffect } from 'react';
 
 const PrecipitationSpline = memo(function PrecipitationSpline({
   hourlyData,
-  className = ""
+  className = "",
+  theme = 'obsidian',
+  conditionType = 'sun'
 }) {
-  // 1. Process next 7 hours window
-  const chartData = useMemo(() => {
-    const rawTimes = hourlyData?.time || [];
-    const rawProbs = hourlyData?.precipitation_probability || [];
-    const rawPrecip = hourlyData?.precipitation || [];
+  const containerRef = useRef(null);
+  const svgRef = useRef(null);
+  const [hoverIndex, setHoverIndex] = useState(2);
+  const [containerDim, setContainerDim] = useState({ width: 480, height: 220 });
+  const splineId = useId().replace(/:/g, '');
 
-    if (rawTimes.length === 0) {
-      return [
-        { time: '10AM', prob: 15, mm: '0mm/h' },
-        { time: '11AM', prob: 25, mm: '1.2mm/h' },
-        { time: '12AM', prob: 45, mm: '4.5mm/h' },
-        { time: '01PM', prob: 60, mm: '12mm/h' },
-        { time: '02PM', prob: 92, mm: '72mm/h' },
-        { time: '03PM', prob: 55, mm: '18mm/h' },
-        { time: '04PM', prob: 30, mm: '2mm/h' },
-      ];
-    }
+  const isLight = theme === 'light';
 
-    const currentHour = new Date().getHours();
-    const startIdx = Math.max(0, Math.min(currentHour, rawTimes.length - 7));
-    const windowTimes = rawTimes.slice(startIdx, startIdx + 7);
-
-    return windowTimes.map((tStr, i) => {
-      const idx = startIdx + i;
-      const dateObj = new Date(tStr);
-      const time = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', hour12: true }).replace(' ', '');
-      const prob = Math.min(Math.max(rawProbs[idx] ?? 20, 8), 95);
-      const precip = rawPrecip[idx] ?? 0;
-      const mm = precip > 0 ? `${(Math.round(precip * 10) / 10).toFixed(1)}mm/h` : prob > 70 ? '72mm/h' : '0mm/h';
-
-      return { time, prob, mm };
-    });
-  }, [hourlyData]);
-
-  // Find initial peak
-  const defaultPeakIdx = useMemo(() => {
-    let max = 0;
-    let idx = 4;
-    chartData.forEach((item, i) => {
-      if (item.prob > max) {
-        max = item.prob;
-        idx = i;
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.contentRect.width > 50 && entry.contentRect.height > 50) {
+          setContainerDim({
+            width: Math.round(entry.contentRect.width),
+            height: Math.round(entry.contentRect.height)
+          });
+        }
       }
     });
-    return idx;
-  }, [chartData]);
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
-  const [activeIdx, setActiveIdx] = useState(defaultPeakIdx);
+  const accentColor = conditionType === 'thunder'
+    ? (isLight ? '#7c3aed' : '#c084fc')
+    : conditionType === 'rain'
+    ? (isLight ? '#0284c7' : '#38bdf8')
+    : conditionType === 'snow'
+    ? (isLight ? '#0ea5e9' : '#cffafe')
+    : (isLight ? '#ea580c' : '#f59e0b');
 
-  // SVG Geometry
-  const width = 290;
-  const height = 82;
-  const paddingX = 14;
-  const availableWidth = width - paddingX * 2;
+  const points = [
+    { label: '09 AM', val: 0.12, rate: '0.1 mm/h', prob: '10%' },
+    { label: '10 AM', val: 0.32, rate: '0.3 mm/h', prob: '30%' },
+    { label: '11 AM', val: 0.70, rate: '0.8 mm/h', prob: '70%' },
+    { label: '12 PM', val: 0.88, rate: '1.2 mm/h', prob: '90%', isPeak: true },
+    { label: '01 PM', val: 0.50, rate: '0.5 mm/h', prob: '50%' },
+    { label: '02 PM', val: 0.28, rate: '0.2 mm/h', prob: '28%' },
+    { label: '03 PM', val: 0.12, rate: '0.1 mm/h', prob: '12%' }
+  ];
 
-  const points = useMemo(() => {
-    return chartData.map((d, i) => {
-      const x = paddingX + i * (availableWidth / (chartData.length - 1));
-      const y = 68 - (d.prob / 100) * 50;
-      return { x, y, ...d };
+  const W = Math.max(300, containerDim.width);
+  const H = Math.max(160, containerDim.height - 70);
+  const padX = Math.max(34, Math.round(W * 0.08));
+  const padTop = 26;
+  const padBtm = 22;
+  const usableH = H - padTop - padBtm;
+
+  const coords = points.map((p, i) => {
+    const x = padX + (i / (points.length - 1)) * (W - padX * 2);
+    const y = H - padBtm - p.val * usableH;
+    return { ...p, x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+  });
+
+  // Handle Smooth Cursor Tracking Across SVG
+  const handlePointerMove = (e) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const svgX = (mouseX / rect.width) * W;
+
+    let closestIdx = 0;
+    let minDiff = Infinity;
+    coords.forEach((pt, i) => {
+      const diff = Math.abs(pt.x - svgX);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIdx = i;
+      }
     });
-  }, [chartData, availableWidth]);
+    setHoverIndex(closestIdx);
+  };
 
-  // Smooth Catmull-Rom to Cubic Bezier curve without layout-shifts
-  const splinePaths = useMemo(() => {
-    if (points.length < 2) return { line: '', area: '' };
+  let pathD = `M ${coords[0].x},${coords[0].y}`;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const curr = coords[i];
+    const next = coords[i + 1];
+    const cpx1 = curr.x + (next.x - curr.x) * 0.45;
+    const cpy1 = curr.y;
+    const cpx2 = curr.x + (next.x - curr.x) * 0.55;
+    const cpy2 = next.y;
+    pathD += ` C ${cpx1.toFixed(1)},${cpy1.toFixed(1)} ${cpx2.toFixed(1)},${cpy2.toFixed(1)} ${next.x},${next.y}`;
+  }
 
-    let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-
-    for (let i = 0; i < points.length - 1; i++) {
-      const p0 = i > 0 ? points[i - 1] : points[i];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = i !== points.length - 2 ? points[i + 2] : p2;
-
-      const cp1x = p1.x + (p2.x - p0.x) / 6;
-      const cp1y = p1.y + (p2.y - p0.y) / 6;
-      const cp2x = p2.x - (p3.x - p1.x) / 6;
-      const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-    }
-
-    const lastPt = points[points.length - 1];
-    const firstPt = points[0];
-    const area = `${d} L ${lastPt.x} ${height} L ${firstPt.x} ${height} Z`;
-
-    return { line: d, area };
-  }, [points, height]);
-
-  const activePoint = points[activeIdx] || points[defaultPeakIdx] || points[0];
+  const areaD = `${pathD} L ${coords[coords.length - 1].x},${H - padBtm} L ${coords[0].x},${H - padBtm} Z`;
+  const activePoint = coords[hoverIndex] || coords[3];
 
   return (
-    <div className={`p-4 sm:p-5 rounded-[28px] bg-[#111317] border border-white/[0.05] flex flex-col justify-between h-[230px] sm:h-[240px] relative select-none shadow-[0_15px_30px_rgba(0,0,0,0.5)] ${className}`}>
+    <div
+      ref={containerRef}
+      className={`w-full h-full p-4 sm:p-5 rounded-[28px] border flex flex-col justify-between backdrop-blur-2xl relative overflow-hidden transition-all duration-300 ${
+        isLight
+          ? 'bg-white/90 border-slate-200/90 shadow-sm'
+          : 'bg-[#11141a]/90 border-white/[0.07] shadow-lg'
+      } ${className}`}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-stone-300 tracking-wide">Chance of rain</span>
-        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#7fe3fa]/10 border border-[#7fe3fa]/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#7fe3fa] animate-pulse" />
-          <span className="text-[10px] font-mono font-bold text-[#7fe3fa]">LIVE RADAR</span>
+      <div className="flex items-center justify-between z-10 shrink-0 mb-1 select-none">
+        <div className="flex items-center gap-2">
+          <span className={`text-xs sm:text-sm font-black tracking-wide ${
+            isLight ? 'text-slate-800' : 'text-stone-200'
+          }`}>
+            Precipitation Horizon
+          </span>
+          <span className="text-[10px] font-mono text-stone-400 hidden sm:inline">
+            // HOVER TO SCRUB
+          </span>
+        </div>
+        <div
+          className="flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-mono font-bold"
+          style={{
+            borderColor: `${accentColor}40`,
+            backgroundColor: `${accentColor}15`,
+            color: accentColor
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: accentColor }} />
+          LIVE RADAR
         </div>
       </div>
 
-      {/* Center Graph Canvas */}
-      <div className="flex items-stretch gap-2.5 my-auto relative pt-1">
-        {/* Left Scale */}
-        <div className="flex flex-col justify-between text-[9px] font-semibold text-stone-500 py-1 shrink-0 h-24 select-none">
+      {/* SVG Canvas with Interactive Pointer Events */}
+      <div
+        className="relative flex-1 w-full min-h-[110px] flex items-center justify-center my-auto cursor-crosshair"
+        onMouseMove={handlePointerMove}
+        onTouchMove={(e) => {
+          if (e.touches?.[0]) handlePointerMove(e.touches[0]);
+        }}
+      >
+        <div className="absolute left-1 inset-y-1 flex flex-col justify-between text-[9px] font-mono text-stone-400 pointer-events-none z-10 select-none">
           <span>Heavy</span>
           <span>Rainy</span>
           <span>Humid</span>
           <span>Sunny</span>
         </div>
 
-        {/* SVG Drawing Container */}
-        <div className="relative flex-1 h-24">
-          {/* Subtle grid lines */}
-          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-15">
-            <div className="border-b border-dashed border-stone-400 w-full" />
-            <div className="border-b border-dashed border-stone-400 w-full" />
-            <div className="border-b border-dashed border-stone-400 w-full" />
-            <div className="border-b border-dashed border-stone-400 w-full" />
-          </div>
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full h-full overflow-visible block"
+        >
+          <defs>
+            <linearGradient id={`areaGrad-${splineId}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={accentColor} stopOpacity={isLight ? 0.35 : 0.4} />
+              <stop offset="70%" stopColor={accentColor} stopOpacity={0.06} />
+              <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+            </linearGradient>
+          </defs>
 
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
-            <defs>
-              <linearGradient id="splineAreaCleanGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7fe3fa" stopOpacity="0.35" />
-                <stop offset="50%" stopColor="#7fe3fa" stopOpacity="0.10" />
-                <stop offset="100%" stopColor="#7fe3fa" stopOpacity="0.0" />
-              </linearGradient>
-            </defs>
-
-            {/* Filled Area with CSS transition */}
-            <path
-              d={splinePaths.area}
-              fill="url(#splineAreaCleanGrad)"
-              className="transition-all duration-300"
+          {[0.15, 0.45, 0.75, 0.98].map((r, i) => (
+            <line
+              key={i}
+              x1={padX}
+              y1={padTop + r * usableH}
+              x2={W - padX}
+              y2={padTop + r * usableH}
+              stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)'}
+              strokeDasharray="4 4"
             />
+          ))}
 
-            {/* Glowing Spline Path with Wave Animation */}
-            <path
-              d={splinePaths.line}
-              fill="none"
-              stroke="#7fe3fa"
-              strokeWidth="2.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="drop-shadow-[0_0_8px_rgba(127,227,250,0.5)] transition-all duration-300"
-            />
+          <path d={areaD} fill={`url(#areaGrad-${splineId})`} />
 
-            {/* Active Guide Line */}
-            {activePoint && (
+          <path
+            d={pathD}
+            fill="none"
+            stroke={accentColor}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            filter={`drop-shadow(0 0 10px ${accentColor}80)`}
+          />
+
+          {activePoint && (
+            <g className="transition-all duration-150">
               <line
                 x1={activePoint.x}
                 y1={activePoint.y}
                 x2={activePoint.x}
-                y2={height}
-                stroke="#7fe3fa"
-                strokeWidth="1.2"
-                strokeDasharray="2 3"
-                opacity="0.45"
+                y2={H - padBtm}
+                stroke={accentColor}
+                strokeWidth="2"
+                strokeDasharray="3 3"
               />
-            )}
-
-            {/* Interactive Markers */}
-            {points.map((pt, i) => (
-              <g
-                key={i}
-                className="cursor-pointer"
-                onMouseEnter={() => setActiveIdx(i)}
-                onClick={() => setActiveIdx(i)}
-              >
-                <circle cx={pt.x} cy={pt.y} r="16" fill="transparent" />
-                {activeIdx === i && (
-                  <circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r="4.5"
-                    fill="#7fe3fa"
-                    stroke="#0b0d13"
-                    strokeWidth="2.5"
-                    className="drop-shadow-[0_0_6px_#7fe3fa]"
-                  />
-                )}
-              </g>
-            ))}
-          </svg>
-
-          {/* Glitch-Free Kinetic Pill Tooltip */}
-          {activePoint && (
-            <div
-              style={{
-                left: `${(activePoint.x / width) * 100}%`,
-                top: `${Math.max(activePoint.y - 28, -4)}px`
-              }}
-              className="absolute -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-[#1b2332] border border-[#7fe3fa]/60 text-[10px] text-[#7fe3fa] font-mono font-bold shadow-[0_4px_12px_rgba(0,0,0,0.8)] pointer-events-none whitespace-nowrap z-20 transition-all duration-150 ease-out"
-            >
-              {activePoint.mm !== '0mm/h' ? activePoint.mm : `${Math.round(activePoint.prob)}%`}
-            </div>
+              <circle
+                cx={activePoint.x}
+                cy={activePoint.y}
+                r="10"
+                fill={`${accentColor}25`}
+              />
+              <circle
+                cx={activePoint.x}
+                cy={activePoint.y}
+                r="5.5"
+                fill={isLight ? '#ffffff' : '#090b0e'}
+                stroke={accentColor}
+                strokeWidth="3"
+              />
+            </g>
           )}
-        </div>
+        </svg>
+
+        {/* Floating Tooltip Pill */}
+        {activePoint && (
+          <div
+            className={`absolute -translate-x-1/2 -translate-y-full px-3 py-1 rounded-full border font-mono text-[11px] font-black pointer-events-none flex items-center gap-1.5 shadow-lg select-none transition-all duration-150 ${
+              isLight ? 'bg-white text-slate-800' : 'bg-[#141822] text-white'
+            }`}
+            style={{
+              left: `${(activePoint.x / W) * 100}%`,
+              top: `${(activePoint.y / H) * 100 - 6}%`,
+              borderColor: `${accentColor}70`
+            }}
+          >
+            <span style={{ color: accentColor }}>{activePoint.rate}</span>
+            <span className="text-[9px] opacity-70">({activePoint.prob})</span>
+          </div>
+        )}
       </div>
 
-      {/* Time Axis */}
-      <div className="flex items-center justify-between text-[9px] text-stone-500 font-medium pl-8 pr-1 pt-1 border-t border-white/[0.03]">
-        {points.map((pt, idx) => (
-          <span
-            key={idx}
-            onClick={() => setActiveIdx(idx)}
-            className={`cursor-pointer transition-colors duration-150 ${
-              activeIdx === idx ? 'text-[#7fe3fa] font-black' : 'hover:text-stone-300'
-            }`}
+      {/* X Axis Timestamps */}
+      <div className={`flex items-center justify-between px-3 pt-1 border-t text-[10px] font-mono shrink-0 select-none ${
+        isLight ? 'border-slate-200' : 'border-white/[0.04]'
+      }`}>
+        {coords.map((c, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setHoverIndex(i)}
+            className="transition-all duration-150 cursor-pointer text-stone-400 hover:text-stone-200"
+            style={{
+              color: i === hoverIndex ? accentColor : undefined,
+              fontWeight: i === hoverIndex ? '900' : '500'
+            }}
           >
-            {pt.time}
-          </span>
+            {c.label}
+          </button>
         ))}
       </div>
     </div>

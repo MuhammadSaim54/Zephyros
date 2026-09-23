@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { getWeather3DComponent } from './WeatherIcons';
 import { RotateCcw } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const ForecastDeck = memo(function ForecastDeck({
   weatherData,
@@ -8,22 +9,21 @@ const ForecastDeck = memo(function ForecastDeck({
   interpretWeatherCode,
   selectedIdx = 0,
   setSelectedIdx,
-  timeFilter = 'Today'
+  theme = 'obsidian'
 }) {
   const current = weatherData?.current;
   const daily = weatherData?.daily;
 
+  const isLight = theme === 'light';
   const todayDate = new Date();
   const timeString = todayDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // Map 7 days dynamically from Open-Meteo API
   const allDays = (daily?.time || []).slice(0, 7).map((timeStr, idx) => {
     const d = new Date(timeStr);
     const dayNameLong = d.toLocaleDateString('en-US', { weekday: 'long' });
     const dayNameShort = d.toLocaleDateString('en-US', { weekday: 'short' });
-    
-    // Live weather code directly from API
-    const wCode = idx === 0 
+
+    const wCode = idx === 0
       ? (current?.weather_code ?? daily?.weather_code?.[0] ?? 0)
       : (daily?.weather_code?.[idx] ?? 0);
 
@@ -36,7 +36,7 @@ const ForecastDeck = memo(function ForecastDeck({
       dayLong: idx === 0 ? todayDate.toLocaleDateString('en-US', { weekday: 'long' }) : dayNameLong,
       dayShort: dayNameShort,
       condition,
-      type: condition.type, // 'sun' | 'rain' | 'thunder' | 'lightning' | 'cloud' | 'snow'
+      type: condition.type,
       maxT,
       rainProb
     };
@@ -56,44 +56,48 @@ const ForecastDeck = memo(function ForecastDeck({
 
   const apparentTempVal = isTodayActive && current?.apparent_temperature !== undefined
     ? formatTemp(current.apparent_temperature)
-    : formatTemp(activeDay.maxT + 2);
+    : (formatTemp ? formatTemp(activeDay.maxT + 2) : `${Math.round(activeDay.maxT + 2)}°`);
 
-  // Take upcoming 5 days for the desktop capsules
   const visiblePillars = allDays.slice(1, 6);
 
   return (
-    <div className="w-full flex items-stretch gap-2.5 h-full min-h-0">
-      {/* 1. Hero Card - Bound to Live Current Weather Condition */}
-      <div
+    <div className="w-full flex flex-col md:flex-row items-stretch gap-3 h-full select-none">
+      {/* 1. Big Hero Card */}
+      <motion.div
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
         onClick={() => setSelectedIdx(0)}
-        className="w-[195px] xl:w-[210px] shrink-0 p-3.5 xl:p-4 rounded-[26px] bg-[#8fe6fa] text-zinc-950 flex flex-col justify-between select-none cursor-pointer relative overflow-hidden h-full min-h-0"
+        className={`w-full md:w-[210px] xl:w-[230px] 2xl:w-[250px] shrink-0 p-4 2xl:p-5 rounded-[28px] flex flex-col justify-between cursor-pointer relative overflow-hidden transition-all duration-300 min-h-[160px] md:min-h-0 ${
+          isLight
+            ? 'bg-gradient-to-br from-[#7be1f8] via-[#67d4f1] to-[#4ac6e8] text-slate-950 shadow-[0_12px_28px_rgba(74,198,232,0.3)]'
+            : 'bg-gradient-to-br from-[#8fe6fa] via-[#7ae0f8] to-[#5cd2f0] text-zinc-950 shadow-[0_16px_36px_rgba(143,230,250,0.35)]'
+        } ${isTodayActive ? 'ring-2 ring-white/90' : 'opacity-95 hover:opacity-100'}`}
       >
+        <div className="absolute top-0 inset-x-4 h-[1px] bg-white/40 pointer-events-none" />
         <div>
-          <div className="flex items-center justify-between text-xs font-bold text-zinc-800">
-            <span className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between text-xs 2xl:text-sm font-black text-zinc-900">
+            <span className="flex items-center gap-1.5 truncate">
               {activeDay.dayLong}
-              {!isTodayActive && <RotateCcw className="w-3 h-3 text-zinc-700" />}
+              {!isTodayActive && <RotateCcw className="w-3 h-3 text-zinc-800 animate-spin" />}
             </span>
-            <span className="font-mono text-[11px] font-semibold">
+            <span className="font-mono text-[11px] 2xl:text-xs font-bold shrink-0">
               {isTodayActive ? timeString : 'Forecast'}
             </span>
           </div>
 
           <div className="flex items-center justify-between mt-1">
-            <div className="temp-val text-[44px] xl:text-[48px] text-zinc-950 leading-none">
+            <div className="temp-val text-[44px] md:text-[48px] 2xl:text-[56px] text-zinc-950 leading-none">
               <span>{activeTempVal}</span>
               <span className="temp-deg">°</span>
             </div>
 
-            {/* Live Weather Icon for Active Day */}
-            <div className="transform scale-110 shrink-0">
-              {getWeather3DComponent(activeDay.type, 64)}
+            <div className="transform scale-110 2xl:scale-125 shrink-0">
+              {getWeather3DComponent(activeDay.type, 56, theme)}
             </div>
           </div>
         </div>
 
-        {/* Live Telemetry */}
-        <div className="space-y-0.5 text-[11px] font-semibold text-zinc-900/95 pt-2 border-t border-black/10">
+        <div className="space-y-0.5 text-[11px] 2xl:text-xs font-semibold text-zinc-900/95 pt-2 border-t border-black/15">
           <div className="flex justify-between">
             <span>Real feel:</span>
             <span className="font-bold">{apparentTempVal}</span>
@@ -104,17 +108,17 @@ const ForecastDeck = memo(function ForecastDeck({
           </div>
           <div className="flex justify-between">
             <span>Pressure:</span>
-            <span className="font-bold">{current?.surface_pressure ? `${Math.round(current.surface_pressure)}MB` : '1010MB'}</span>
+            <span className="font-bold">{current?.surface_pressure ? `${Math.round(current.surface_pressure)}MB` : '986MB'}</span>
           </div>
           <div className="flex justify-between">
             <span>Wind NE:</span>
-            <span className="font-bold">{current?.wind_speed_10m ? `${Math.round(current.wind_speed_10m)}km/h` : '20km/h'}</span>
+            <span className="font-bold">{current?.wind_speed_10m ? `${Math.round(current.wind_speed_10m)}km/h` : '3km/h'}</span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* 2. 5-Day Monolith Capsules - Dynamically Bound to Upcoming Days' Real Weather Code */}
-      <div className="flex-1 grid grid-cols-5 gap-2 h-full min-h-0">
+      {/* 2. 5 Monolith Pillars */}
+      <div className="flex-1 flex md:grid md:grid-cols-5 gap-2.5 overflow-x-auto no-scrollbar min-h-[140px] md:min-h-0 items-stretch">
         {visiblePillars.map((item) => {
           const isSelected = selectedIdx === item.idx;
           const formattedTempNum = formatTemp ? formatTemp(item.maxT).replace('°', '') : String(Math.round(item.maxT));
@@ -123,26 +127,35 @@ const ForecastDeck = memo(function ForecastDeck({
             <div
               key={item.idx}
               onClick={() => setSelectedIdx(item.idx)}
-              className={`py-3.5 px-1 rounded-[26px] flex flex-col items-center justify-between cursor-pointer select-none h-full min-h-0 transition-all ${
+              className={`min-w-[92px] md:min-w-0 flex-1 py-3.5 2xl:py-4 px-2 rounded-[26px] flex flex-col items-center justify-between cursor-pointer select-none transition-colors duration-200 group relative backdrop-blur-xl ${
                 isSelected
-                  ? 'bg-gradient-to-b from-[#252b37] to-[#141720] border border-[#7fe3fa]/70 shadow-[0_0_15px_rgba(127,227,250,0.15)]'
-                  : 'bg-gradient-to-b from-[#1f232c] via-[#171a21] to-[#121419] border border-white/[0.05] hover:border-white/[0.12]'
+                  ? isLight
+                    ? 'bg-white border-2 border-sky-500 shadow-md'
+                    : 'bg-[#181d29] border-2 border-[#7fe3fa]'
+                  : isLight
+                  ? 'bg-white/85 hover:bg-white border border-slate-200/90 hover:border-slate-300'
+                  : 'bg-[#12151e]/90 hover:bg-[#161a24] border border-white/[0.06] hover:border-white/[0.14]'
               }`}
             >
-              {/* Actual Day Name from Date (Tue, Wed, Thu...) */}
-              <span className="text-xs font-bold text-white tracking-wide pt-0.5">
+              <div className="absolute top-0 inset-x-3 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
+              <span className={`text-xs 2xl:text-sm font-black tracking-wider uppercase pt-0.5 transition-colors ${
+                isSelected
+                  ? isLight ? 'text-sky-600' : 'text-[#7fe3fa]'
+                  : isLight ? 'text-slate-500' : 'text-stone-300'
+              }`}>
                 {item.dayShort}
               </span>
 
-              {/* Dynamic Weather Icon derived directly from daily.weather_code */}
-              <div className="my-auto w-full flex items-center justify-center py-1 transform hover:scale-105 transition-transform">
-                {getWeather3DComponent(item.type, 78)}
+              <div className="my-auto py-1 transform group-hover:scale-105 transition-transform duration-200">
+                {getWeather3DComponent(item.type, 50, theme)}
               </div>
 
-              {/* Real Temperature from API */}
-              <div className="temp-val text-xl xl:text-2xl font-black text-white pb-0.5 tracking-tight flex items-start leading-none">
+              <div className={`temp-val text-xl 2xl:text-2xl font-black pb-0.5 tracking-tight flex items-start leading-none ${
+                isLight ? 'text-slate-900' : 'text-white'
+              }`}>
                 <span>{formattedTempNum}</span>
-                <span className="text-xs xl:text-sm font-bold ml-0.5 mt-0.5">°</span>
+                <span className="text-xs font-bold ml-0.5 mt-0.5">°</span>
               </div>
             </div>
           );
