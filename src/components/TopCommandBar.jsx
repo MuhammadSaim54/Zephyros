@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Sun, Moon, MapPin, Sparkles, X } from 'lucide-react';
+import { Search, Sun, Moon, MapPin, X } from 'lucide-react';
 
 export default function TopCommandBar({
   currentLocation,
@@ -24,14 +24,50 @@ export default function TopCommandBar({
 
   return (
     <header className="w-full px-3.5 sm:px-6 2xl:px-8 py-2.5 2xl:py-3.5 flex items-center justify-between gap-3 z-30 select-none">
-      {/* Brand Logo */}
+      {/* Brand Logo (Ultra-Premium 3D Fluid Tornado / Vortex Motif) */}
       <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-        <div className={`w-8 h-8 sm:w-10 sm:h-10 2xl:w-12 2xl:h-12 rounded-2xl flex items-center justify-center border transition-all ${
+        <div className={`w-9 h-9 sm:w-10 sm:h-10 2xl:w-12 2xl:h-12 rounded-2xl flex items-center justify-center border transition-all relative overflow-hidden ${
           isLight
-            ? 'bg-sky-100 border-sky-300 text-sky-600 shadow-sm'
-            : 'bg-[#7fe3fa]/15 border-[#7fe3fa]/30 text-[#7fe3fa] shadow-[0_0_20px_rgba(127,227,250,0.25)]'
+            ? 'bg-gradient-to-br from-sky-50 via-sky-100 to-sky-200 border-sky-300 text-sky-700 shadow-sm'
+            : 'bg-gradient-to-br from-[#0c1424] via-[#101b30] to-[#060911] border-[#7fe3fa]/50 text-[#7fe3fa] shadow-[0_0_30px_rgba(127,227,250,0.4)]'
         }`}>
-          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 2xl:w-6 2xl:h-6 animate-pulse" />
+          <div className="absolute inset-0 bg-[#7fe3fa]/15 animate-pulse pointer-events-none" />
+          <svg width="28" height="28" viewBox="0 0 36 36" fill="none" className="transform hover:scale-110 transition-transform duration-300">
+            <defs>
+              <linearGradient id="proVortex" x1="6" y1="4" x2="30" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="35%" stopColor="#7fe3fa" />
+                <stop offset="75%" stopColor="#0284c7" />
+                <stop offset="100%" stopColor="#0369a1" />
+              </linearGradient>
+              <filter id="glowFX" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            {/* Organic Fluid Swirling Tornado Rings */}
+            <path
+              d="M 6,8 C 18,4 30,10 27,15 C 24,20 10,16 10,21 C 10,26 26,23 23,28 C 21,32 14,30 14,30"
+              stroke="url(#proVortex)"
+              strokeWidth="3.6"
+              strokeLinecap="round"
+              filter="url(#glowFX)"
+            />
+            <path
+              d="M 12,5 C 22,3 32,8 28,12"
+              stroke="#ffffff"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              opacity="0.9"
+            />
+            <path
+              d="M 16,24 C 20,25 24,24 22,27"
+              stroke="#7fe3fa"
+              strokeWidth="2"
+              strokeLinecap="round"
+              opacity="0.7"
+            />
+          </svg>
         </div>
         <div>
           <h1 className={`text-base sm:text-lg 2xl:text-2xl font-black tracking-wider font-mono uppercase transition-colors ${
